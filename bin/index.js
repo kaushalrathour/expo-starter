@@ -640,16 +640,79 @@ ${configSection}
     // Step 12: Install all dependencies after user questions are complete
     console.log(chalk.cyan('\n📦 Installing all project dependencies...'));
     
-    console.log(chalk.green(`Installing UI & utility dependencies: ${group1.join(', ')}...`));
-    await execa('npx', ['expo', 'install', ...group1], { cwd: appPath, stdio: 'inherit' });
-
-    console.log(chalk.green(`Installing navigation dependencies: ${group2.join(', ')}...`));
-    await execa('npx', ['expo', 'install', ...group2], { cwd: appPath, stdio: 'inherit' });
-
-    console.log(chalk.green(`Installing state management dependencies: ${group3.join(', ')}...`));
-    await execa('npx', ['expo', 'install', ...group3], { cwd: appPath, stdio: 'inherit' });
+    const maxRetries = 3;
+    let retryCount = 0;
     
-    console.log(chalk.green('\n✅ All dependencies installed successfully!'));
+    const installWithRetry = async (dependencies, description) => {
+      while (retryCount < maxRetries) {
+        try {
+          console.log(chalk.green(`Installing ${description}: ${dependencies.join(', ')}...`));
+          await execa('npx', ['expo', 'install', ...dependencies], { cwd: appPath, stdio: 'inherit' });
+          console.log(chalk.green(`✅ ${description} installed successfully!`));
+          return true;
+        } catch (error) {
+          retryCount++;
+          console.log(chalk.yellow(`⚠️  Installation attempt ${retryCount} failed for ${description}`));
+          
+          if (retryCount < maxRetries) {
+            console.log(chalk.cyan(`🔄 Retrying installation (${retryCount}/${maxRetries})...`));
+            
+            // Clean cache and try again
+            try {
+              console.log(chalk.gray('   Cleaning npm cache...'));
+              await execa('npm', ['cache', 'clean', '--force'], { cwd: appPath, stdio: 'pipe' });
+              
+              // Wait a bit before retrying
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            } catch (cacheError) {
+              console.log(chalk.yellow('   Cache clean failed, continuing with retry...'));
+            }
+          } else {
+            console.log(chalk.red(`❌ Failed to install ${description} after ${maxRetries} attempts`));
+            console.log(chalk.yellow('You can manually install these dependencies later:'));
+            console.log(chalk.gray(`   npx expo install ${dependencies.join(' ')}`));
+            return false;
+          }
+        }
+      }
+      return false;
+    };
+    
+    // Install each group with retry logic
+    await installWithRetry(group1, 'UI & utility dependencies');
+    retryCount = 0; // Reset for next group
+    await installWithRetry(group2, 'navigation dependencies');
+    retryCount = 0; // Reset for next group
+    await installWithRetry(group3, 'state management dependencies');
+    
+    // Verify critical packages are installed
+    console.log(chalk.cyan('🔍 Verifying critical package installations...'));
+    const criticalPackages = ['@react-navigation/native', '@react-navigation/elements', 'expo-router'];
+    const missingPackages = [];
+    
+    for (const pkg of criticalPackages) {
+      const pkgPath = path.join(appPath, 'node_modules', pkg);
+      if (!(await fs.pathExists(pkgPath))) {
+        missingPackages.push(pkg);
+      }
+    }
+    
+    if (missingPackages.length > 0) {
+      console.log(chalk.yellow(`⚠️  Some critical packages are missing: ${missingPackages.join(', ')}`));
+      console.log(chalk.cyan('🔄 Attempting to install missing packages...'));
+      
+      try {
+        await execa('npx', ['expo', 'install', ...missingPackages], { cwd: appPath, stdio: 'inherit' });
+        console.log(chalk.green('✅ Missing packages installed successfully!'));
+      } catch (error) {
+        console.log(chalk.red('❌ Failed to install missing packages. Manual installation may be required.'));
+        console.log(chalk.yellow(`   Run: npx expo install ${missingPackages.join(' ')}`));
+      }
+    } else {
+      console.log(chalk.green('✅ All critical packages verified!'));
+    }
+    
+    console.log(chalk.green('\n✅ Dependency installation process completed!'));
     
     console.log(chalk.green(`\n✅ Project '${appName}' is ready! 🚀`));
 
@@ -676,11 +739,29 @@ ${configSection}
     console.log(chalk.gray(`• Production build: npm run build:production`));
     console.log(chalk.gray(`• Submit to stores: npm run submit:production`));
     
-    console.log(chalk.cyan(`\n📋 Troubleshooting Pod Install Issues:`));
-    console.log(chalk.gray(`If you encounter 'RNWorklets' dependency errors during pod install:`));
-    console.log(chalk.gray(`• This template uses react-native-reanimated@3.19.0 to avoid compatibility issues`));
-    console.log(chalk.gray(`• If errors persist, try: cd ios && pod install --repo-update`));
-    console.log(chalk.gray(`• For other dependency conflicts, check: https://github.com/software-mansion/react-native-reanimated/issues`));
+    console.log(chalk.cyan(`\n📋 Troubleshooting Common Issues:`));
+    
+    console.log(chalk.yellow('🔧 Dependency Installation Issues:'));
+    console.log(chalk.gray('• If packages are missing or corrupted, run: rm -rf node_modules package-lock.json && npm install'));
+    console.log(chalk.gray('• For npm permission errors, try: npm cache clean --force'));
+    console.log(chalk.gray('• Missing assets directory: Delete node_modules and reinstall dependencies'));
+    
+    console.log(chalk.yellow('\n🍎 iOS/CocoaPods Issues:'));
+    console.log(chalk.gray('• RNWorklets dependency errors: This template uses compatible versions'));
+    console.log(chalk.gray('• Pod install fails: cd ios && pod install --repo-update'));
+    console.log(chalk.gray('• Clean iOS build: cd ios && rm -rf Pods Podfile.lock && pod install'));
+    
+    console.log(chalk.yellow('\n📱 Metro/Bundler Issues:'));
+    console.log(chalk.gray('• Clear Metro cache: npx expo start --clear'));
+    console.log(chalk.gray('• Reset Metro cache: rm -rf .expo && npx expo start'));
+    console.log(chalk.gray('• TypeScript errors: Ensure tsconfig.json has "jsx": "react-jsx"'));
+    
+    console.log(chalk.yellow('\n🔗 Deep Linking Issues:'));
+    console.log(chalk.gray('• Test custom scheme: expo://localhost:8081'));
+    console.log(chalk.gray('• Verify app.json scheme configuration'));
+    console.log(chalk.gray('• Check Android intent filters and iOS associated domains'));
+    
+    console.log(chalk.cyan('\n💬 Need Help? Visit: https://github.com/kaushalrathour/expo-starter/issues'));
   } catch (err) {
     console.error(chalk.red('❌ An error occurred:'), err);
     process.exit(1);
