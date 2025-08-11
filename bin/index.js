@@ -87,6 +87,11 @@ async function run() {
         if (await fs.pathExists(targetPath)) {
           await fs.remove(targetPath);
           console.log(chalk.gray(`   ✓ Removed ${item}`));
+          
+          // Verify deletion
+          if (await fs.pathExists(targetPath)) {
+            console.log(chalk.red(`   ❌ Failed to delete ${item} - still exists`));
+          }
         } else {
           console.log(chalk.gray(`   - ${item} not found`));
         }
@@ -96,7 +101,31 @@ async function run() {
     }
 
     // Step 3: Copy files from overrides/
-    await fs.copy(templateDir, appPath, { overwrite: true, recursive: true });
+    console.log(chalk.cyan('📋 Copying template files...'));
+    await fs.copy(templateDir, appPath, { 
+      overwrite: true, 
+      recursive: true,
+      filter: (src, dest) => {
+        // Log what we're copying for debugging
+        const relativePath = path.relative(templateDir, src);
+        if (relativePath) {
+          console.log(chalk.gray(`     Copying: ${relativePath}`));
+        }
+        return true;
+      }
+    });
+    
+    // Verify final state after copy
+    const finalFiles = await fs.readdir(appPath);
+    console.log(chalk.gray(`   ✓ Template files copied (${finalFiles.length} items total)`));
+    
+    // Double-check that unwanted directories are not present
+    const unwantedDirs = ['app', 'components', 'constants', 'hooks', 'scripts'];
+    for (const dir of unwantedDirs) {
+      if (await fs.pathExists(path.join(appPath, dir))) {
+        console.log(chalk.yellow(`   ⚠️  Warning: Unwanted directory '${dir}' still exists after template copy!`));
+      }
+    }
 
     // Step 3.5: Merge package.json scripts
     console.log(chalk.cyan('📝 Adding comprehensive npm scripts...'));
