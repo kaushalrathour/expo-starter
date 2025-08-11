@@ -27,7 +27,7 @@ async function run() {
 
     // Step 2: Remove files/folders to override
     console.log(chalk.cyan('🔧 Setting up custom template files...'));
-    const toRemove = ['App.tsx', 'README.md', 'babel.config.js', 'src', 'app', 'constants', 'hooks', 'scripts'];
+    const toRemove = ['App.tsx', 'README.md', 'babel.config.js', 'src', 'app', 'constants', 'components', 'hooks', 'scripts'];
     for (const item of toRemove) {
       const targetPath = path.join(appPath, item);
       if (await fs.pathExists(targetPath)) {
@@ -60,8 +60,12 @@ async function run() {
         packageJson.expo = { ...packageJson.expo, ...processedScriptsTemplate.expo };
       }
       
+      // Set main entry point to index.ts
+      packageJson.main = 'index.ts';
+      
       await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
       console.log(chalk.green('✅ Added comprehensive npm scripts and expo configuration to package.json'));
+      console.log(chalk.green('✅ Set main entry point to index.ts'));
     }
 
     // Step 4: Install dependency groups
