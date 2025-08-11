@@ -1,6 +1,6 @@
 {
   "name": "@kaushalrathour/expo-starter",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Bootstrap a custom React Native Expo app with predefined template and dependencies using create-expo-app",
   "bin": {
     "expo-starter": "bin/index.js"
