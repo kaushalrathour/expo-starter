@@ -80,7 +80,7 @@ async function run() {
 
     // Step 2: Remove files/folders to override
     console.log(chalk.cyan('🧹 Cleaning up default Expo files...'));
-    const toRemove = ['App.tsx', 'README.md', 'babel.config.js', 'src', 'app', 'constants', 'components', 'hooks', 'scripts'];
+    const toRemove = ['App.tsx', 'README.md', 'babel.config.js', 'tsconfig.json', 'src', 'app', 'constants', 'components', 'hooks', 'scripts'];
     for (const item of toRemove) {
       const targetPath = path.join(appPath, item);
       try {
@@ -176,26 +176,40 @@ async function run() {
       'react-redux',
     ];
 
-    console.log(chalk.green(`📦 Installing UI & utility dependencies: ${group1.join(', ')}...`));
-    await execa('npx', ['expo', 'install', ...group1], { cwd: appPath, stdio: 'inherit' });
-
-    console.log(chalk.green(`📦 Installing navigation dependencies: ${group2.join(', ')}...`));
-    await execa('npx', ['expo', 'install', ...group2], { cwd: appPath, stdio: 'inherit' });
-
-    console.log(chalk.green(`📦 Installing state management dependencies: ${group3.join(', ')}...`));
-    await execa('npx', ['expo', 'install', ...group3], { cwd: appPath, stdio: 'inherit' });
-
-    // Step 4.5: Remove Expo Router dependencies
-    console.log(chalk.cyan('🗑️ Removing Expo Router dependencies...'));
-    const routerPackagesToRemove = [
-      'expo-router'
-    ];
-    
-    try {
-      await execa('npm', ['uninstall', ...routerPackagesToRemove], { cwd: appPath, stdio: 'inherit' });
-      console.log(chalk.green('✅ Expo Router dependencies removed'));
-    } catch (error) {
-      console.log(chalk.yellow('⚠️  Expo Router may not have been installed, continuing...'));
+    // Step 4.5: Clean up Expo Router configuration from app.json
+    console.log(chalk.cyan('🧹 Cleaning up Expo Router configuration...'));
+    const appJsonPath = path.join(appPath, 'app.json');
+    if (await fs.pathExists(appJsonPath)) {
+      try {
+        const appJson = await fs.readJson(appJsonPath);
+        
+        // Remove expo-router from plugins if it exists
+        if (appJson.expo && appJson.expo.plugins) {
+          appJson.expo.plugins = appJson.expo.plugins.filter(plugin => 
+            plugin !== 'expo-router' && plugin !== 'expo-router/plugin'
+          );
+        }
+        
+        // Remove typedRoutes experiment if it exists
+        if (appJson.expo && appJson.expo.experiments && appJson.expo.experiments.typedRoutes) {
+          delete appJson.expo.experiments.typedRoutes;
+          
+          // Remove experiments object if it's now empty
+          if (Object.keys(appJson.expo.experiments).length === 0) {
+            delete appJson.expo.experiments;
+          }
+        }
+        
+        // Remove web configuration entirely (Android/iOS focused)
+        if (appJson.expo && appJson.expo.web) {
+          delete appJson.expo.web;
+        }
+        
+        await fs.writeJson(appJsonPath, appJson, { spaces: 2 });
+        console.log(chalk.green('✅ Expo Router configuration cleaned from app.json'));
+      } catch (error) {
+        console.log(chalk.yellow('⚠️  Could not clean app.json, continuing...'));
+      }
     }
 
     // Step 5: Configure package name if provided
@@ -622,6 +636,20 @@ ${configSection}
       await fs.writeJson(finalPackageJsonPath, finalPackageJson, { spaces: 2 });
       console.log(chalk.green('✅ Entry point set to index.ts'));
     }
+    
+    // Step 12: Install all dependencies after user questions are complete
+    console.log(chalk.cyan('\n📦 Installing all project dependencies...'));
+    
+    console.log(chalk.green(`Installing UI & utility dependencies: ${group1.join(', ')}...`));
+    await execa('npx', ['expo', 'install', ...group1], { cwd: appPath, stdio: 'inherit' });
+
+    console.log(chalk.green(`Installing navigation dependencies: ${group2.join(', ')}...`));
+    await execa('npx', ['expo', 'install', ...group2], { cwd: appPath, stdio: 'inherit' });
+
+    console.log(chalk.green(`Installing state management dependencies: ${group3.join(', ')}...`));
+    await execa('npx', ['expo', 'install', ...group3], { cwd: appPath, stdio: 'inherit' });
+    
+    console.log(chalk.green('\n✅ All dependencies installed successfully!'));
     
     console.log(chalk.green(`\n✅ Project '${appName}' is ready! 🚀`));
 
