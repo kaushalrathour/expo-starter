@@ -6,12 +6,65 @@ const { execa } = require('execa');
 const chalk = require('chalk');
 const os = require('os');
 
+// Validation functions
+const validateAppName = (name) => {
+  // App name should be alphanumeric, can contain hyphens and underscores, 3-50 characters
+  const appNameRegex = /^[a-zA-Z][a-zA-Z0-9_-]{2,49}$/;
+  return appNameRegex.test(name);
+};
+
+const validatePackageName = (packageName) => {
+  // Package name format: com.organization.appname (reverse domain notation)
+  // Allow both 2-segment (com.appname) and 3+ segment (com.organization.appname) formats
+  const packageRegex = /^[a-z][a-z0-9]*(\.([a-z][a-z0-9]*))+$/;
+  return packageRegex.test(packageName);
+};
+
+const isTwoSegmentPackage = (packageName) => {
+  // Check if package name has only two segments (com.appname)
+  return packageName.split('.').length === 2;
+};
+
+const validateAppScheme = (scheme) => {
+  // App scheme should be lowercase alphanumeric, can contain hyphens, 3-20 characters
+  const schemeRegex = /^[a-z][a-z0-9-]{2,19}$/;
+  return schemeRegex.test(scheme);
+};
+
+const validateDomain = (domain) => {
+  // Domain validation: basic format check
+  const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}(\.[a-zA-Z]{2,})*$/;
+  return domainRegex.test(domain);
+};
+
 async function run() {
   const appName = process.argv[2];
   const packageName = process.argv[3]; // optional
 
   if (!appName) {
     console.error(chalk.red('❌ Please provide an app name.\nUsage: expo-starter AppName [com.organization.appname]'));
+    process.exit(1);
+  }
+
+  // Validate app name
+  if (!validateAppName(appName)) {
+    console.error(chalk.red('❌ Invalid app name!'));
+    console.error(chalk.yellow('App name must:'));
+    console.error(chalk.yellow('  - Start with a letter'));
+    console.error(chalk.yellow('  - Be 3-50 characters long'));
+    console.error(chalk.yellow('  - Contain only letters, numbers, hyphens, and underscores'));
+    console.error(chalk.gray('  Examples: MyApp, my-app, My_App_2024'));
+    process.exit(1);
+  }
+
+  // Validate package name if provided
+  if (packageName && !validatePackageName(packageName)) {
+    console.error(chalk.red('❌ Invalid package name!'));
+    console.error(chalk.yellow('Package name must:'));
+    console.error(chalk.yellow('  - Use reverse domain notation'));
+    console.error(chalk.yellow('  - Contain only lowercase letters and dots'));
+    console.error(chalk.yellow('  - Have at least 2 segments'));
+    console.error(chalk.gray('  Examples: com.company.appname, org.mycompany.myapp'));
     process.exit(1);
   }
 
@@ -26,7 +79,6 @@ async function run() {
     await execa('npx', ['create-expo-app', appName], { cwd: cwd, stdio: 'inherit' });
 
     // Step 2: Remove files/folders to override
-    console.log(chalk.cyan('🔧 Setting up custom template files...'));
     const toRemove = ['App.tsx', 'README.md', 'babel.config.js', 'src', 'app', 'constants', 'components', 'hooks', 'scripts'];
     for (const item of toRemove) {
       const targetPath = path.join(appPath, item);
@@ -64,8 +116,7 @@ async function run() {
       packageJson.main = 'index.ts';
       
       await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
-      console.log(chalk.green('✅ Added comprehensive npm scripts and expo configuration to package.json'));
-      console.log(chalk.green('✅ Set main entry point to index.ts'));
+      console.log(chalk.green('✅ Package configuration updated'));
     }
 
     // Step 4: Install dependency groups
@@ -87,7 +138,6 @@ async function run() {
     ];
 
     const group3 = [
-      'react-native-dotenv',
       '@reduxjs/toolkit',
       'react-redux',
     ];
@@ -102,8 +152,68 @@ async function run() {
     await execa('npm', ['install', ...group3], { cwd: appPath, stdio: 'inherit' });
 
     // Step 5: Configure package name if provided
+    let finalPackageName = packageName;
     if (packageName) {
       console.log(chalk.cyan(`📦 Configuring package name: ${packageName}...`));
+      
+      // Warn about 2-segment package names and iOS issues
+      if (isTwoSegmentPackage(packageName)) {
+        console.log(chalk.yellow('⚠️  WARNING: Two-segment package name detected!'));
+        console.log(chalk.yellow('Package name "' + packageName + '" may cause issues with iOS development and deployment.'));
+        console.log(chalk.yellow('Apple recommends using at least 3 segments (e.g., com.company.appname).'));
+        console.log(chalk.gray('Issues you may encounter:'));
+        console.log(chalk.gray('  - App Store submission problems'));
+        console.log(chalk.gray('  - TestFlight distribution issues'));
+        console.log(chalk.gray('  - Xcode signing complications'));
+        
+        const readline = require('readline');
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout
+        });
+        
+        const askQuestion = (question) => {
+          return new Promise((resolve) => {
+            rl.question(question, (answer) => {
+              resolve(answer.trim());
+            });
+          });
+        };
+        
+        const updatePackage = await askQuestion(chalk.cyan('Would you like to update your package name to avoid iOS issues? (y/N): '));
+        
+        if (updatePackage.toLowerCase() === 'y' || updatePackage.toLowerCase() === 'yes') {
+          let newPackageName;
+          do {
+            const segments = packageName.split('.');
+            const suggestedName = `${segments[0]}.company.${segments[1]}`;
+            newPackageName = await askQuestion(chalk.cyan(`Enter a new package name (suggestion: ${suggestedName}): `));
+            
+            if (newPackageName && !validatePackageName(newPackageName)) {
+              console.error(chalk.red('❌ Invalid package name format!'));
+              console.error(chalk.yellow('Please use reverse domain notation (e.g., com.company.appname)'));
+              newPackageName = null;
+            } else if (newPackageName && isTwoSegmentPackage(newPackageName)) {
+              console.error(chalk.yellow('⚠️  Still a 2-segment package name. Consider using 3+ segments.'));
+              const keepAnyway = await askQuestion(chalk.cyan('Use this package name anyway? (y/N): '));
+              if (keepAnyway.toLowerCase() !== 'y' && keepAnyway.toLowerCase() !== 'yes') {
+                newPackageName = null;
+              }
+            }
+          } while (newPackageName !== null && !validatePackageName(newPackageName));
+          
+          if (newPackageName) {
+            finalPackageName = newPackageName;
+            console.log(chalk.green(`✅ Updated package name to: ${finalPackageName}`));
+          } else {
+            console.log(chalk.gray('Keeping original package name...'));
+          }
+        } else {
+          console.log(chalk.gray('Proceeding with 2-segment package name. You can change this later in app.json'));
+        }
+        
+        rl.close();
+      }
       
       const appJsonPath = path.join(appPath, 'app.json');
       if (await fs.pathExists(appJsonPath)) {
@@ -113,16 +223,16 @@ async function run() {
         if (!appJson.expo.ios) {
           appJson.expo.ios = {};
         }
-        appJson.expo.ios.bundleIdentifier = packageName;
+        appJson.expo.ios.bundleIdentifier = finalPackageName;
         
         // Update Android package
         if (!appJson.expo.android) {
           appJson.expo.android = {};
         }
-        appJson.expo.android.package = packageName;
+        appJson.expo.android.package = finalPackageName;
         
         await fs.writeJson(appJsonPath, appJson, { spaces: 2 });
-        console.log(chalk.green(`✅ Updated bundle identifier and package to: ${packageName}`));
+        console.log(chalk.green(`✅ Updated bundle identifier and package to: ${finalPackageName}`));
       }
     }
 
@@ -148,15 +258,41 @@ async function run() {
     let universalLinkDomain = null;
     
     if (configureAppScheme.toLowerCase() === 'y' || configureAppScheme.toLowerCase() === 'yes') {
-      appScheme = await askQuestion(chalk.cyan('🔤 Enter your app scheme (e.g., "myapp", "sunrise"): '));
+      // Validate app scheme with retry logic
+      do {
+        appScheme = await askQuestion(chalk.cyan(`🔤 Enter your app scheme (e.g., "${appName.toLowerCase()}", "myapp"): `));
+        
+        if (appScheme && !validateAppScheme(appScheme)) {
+          console.error(chalk.red('❌ Invalid app scheme!'));
+          console.error(chalk.yellow('App scheme must:'));
+          console.error(chalk.yellow('  - Start with a letter'));
+          console.error(chalk.yellow('  - Be 3-20 characters long'));
+          console.error(chalk.yellow('  - Contain only lowercase letters, numbers, and hyphens'));
+          console.error(chalk.gray(`  Examples: ${appName.toLowerCase()}, myapp, my-app`));
+          appScheme = null; // Reset to retry
+        }
+      } while (appScheme && !validateAppScheme(appScheme));
       
       if (appScheme) {
         const configureUniversalLinks = await askQuestion(chalk.cyan('🌐 Do you want to configure universal links? (y/N): '));
         
         if (configureUniversalLinks.toLowerCase() === 'y' || configureUniversalLinks.toLowerCase() === 'yes') {
-          universalLinkDomain = await askQuestion(chalk.cyan('🔗 Enter your domain for universal links (e.g., "myapp.com", "sunrise-trade.myshopify.com"): '));
+          // Validate domain with retry logic
+          do {
+            universalLinkDomain = await askQuestion(chalk.cyan(`🔗 Enter your domain for universal links (e.g., "${appName.toLowerCase()}.com", "myapp.com"): `));
+            
+            if (universalLinkDomain && !validateDomain(universalLinkDomain)) {
+              console.error(chalk.red('❌ Invalid domain!'));
+              console.error(chalk.yellow('Domain must:'));
+              console.error(chalk.yellow('  - Be a valid domain format'));
+              console.error(chalk.yellow('  - Include a top-level domain (.com, .org, etc.)'));
+              console.error(chalk.gray(`  Examples: ${appName.toLowerCase()}.com, mycompany.org, app.example.io`));
+              universalLinkDomain = null; // Reset to retry
+            }
+          } while (universalLinkDomain && !validateDomain(universalLinkDomain));
         }
         
+        console.log(chalk.cyan('⚙️  Configuring deep linking...'));
         // Update app.json with scheme and universal link configuration
         const appJsonPath = path.join(appPath, 'app.json');
         if (await fs.pathExists(appJsonPath)) {
@@ -296,6 +432,54 @@ async function run() {
         console.log(chalk.red('❌ Failed to generate native directories:'), error.message);
         console.log(chalk.yellow('You can generate them manually later with: npx expo prebuild'));
       }
+    }
+    
+    // Step 8: Configure git repository with custom initial commit
+    console.log(chalk.cyan('📋 Setting up git repository...'));
+    
+    try {
+      // Reset the git repository to remove Expo's initial commit
+      await execa('git', ['reset', '--hard'], { cwd: appPath, stdio: 'pipe' });
+      
+      // Remove all existing commits and start fresh
+      await execa('git', ['update-ref', '-d', 'HEAD'], { cwd: appPath, stdio: 'pipe' });
+      
+      // Add all files to git
+      await execa('git', ['add', '.'], { cwd: appPath, stdio: 'pipe' });
+      
+      // Create new initial commit with our custom message
+      const commitConfigDetails = [];
+      if (finalPackageName) {
+        commitConfigDetails.push(`📦 Package: ${finalPackageName}`);
+      }
+      if (appScheme) {
+        commitConfigDetails.push(`🔗 App Scheme: ${appScheme}://`);
+      }
+      if (universalLinkDomain) {
+        commitConfigDetails.push(`🌐 Universal Links: https://${universalLinkDomain}`);
+      }
+      
+      const configSection = commitConfigDetails.length > 0 
+        ? `\n\n⚙️ Configuration:\n${commitConfigDetails.join('\n')}`
+        : '';
+      
+      const commitMessage = `🎆 Initial commit: ${appName}
+
+🚀 Generated and configured with expo-starter
+✨ Includes: Navigation, Redux, UI components, build scripts, and more!
+${configSection}
+
+📎 Template: @kaushalrathour/expo-starter
+🔗 Repository: https://github.com/kaushalrathour/expo-starter
+
+💡 Use 'npx @kaushalrathour/expo-starter' for latest version`;
+      
+      await execa('git', ['commit', '-m', commitMessage], { cwd: appPath, stdio: 'pipe' });
+      
+      console.log(chalk.green('✅ Git repository configured with custom initial commit'));
+    } catch (error) {
+      console.log(chalk.yellow('⚠️  Git configuration failed (this is optional):'), error.message);
+      console.log(chalk.gray('   You can manually configure git later'));
     }
     
     console.log(chalk.green(`\n✅ Project '${appName}' is ready! 🚀`));
