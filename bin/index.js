@@ -4,6 +4,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const { execa } = require('execa');
 const chalk = require('chalk');
+const os = require('os');
 
 async function run() {
   const appName = process.argv[2];
@@ -225,6 +226,74 @@ async function run() {
       }
     }
     
+    // Step 7: Generate native directories if requested
+    const generateNative = await askQuestion(chalk.cyan('📱 Do you want to generate native Android/iOS directories (expo prebuild)? (y/N): '));
+    
+    if (generateNative.toLowerCase() === 'y' || generateNative.toLowerCase() === 'yes') {
+      // Ask which platforms to prebuild
+      const platformChoice = await askQuestion(chalk.cyan('📋 Which platforms to prebuild?\n  1. Both Android and iOS (default)\n  2. Android only\n  3. iOS only\nEnter choice (1-3): '));
+      
+      let platforms = [];
+      switch (platformChoice.trim()) {
+        case '2':
+          platforms = ['--platform', 'android'];
+          console.log(chalk.cyan('📱 Generating Android directory...'));
+          break;
+        case '3':
+          platforms = ['--platform', 'ios'];
+          console.log(chalk.cyan('🍎 Generating iOS directory...'));
+          break;
+        case '1':
+        default:
+          platforms = []; // Both platforms (default behavior)
+          console.log(chalk.cyan('📱 Generating Android and iOS directories...'));
+          break;
+      }
+      
+      try {
+        // Run expo prebuild to generate native directories
+        await execa('npx', ['expo', 'prebuild', '--clean', ...platforms], { 
+          cwd: appPath, 
+          stdio: 'inherit' 
+        });
+        
+        console.log(chalk.green('✅ Native directories generated successfully!'));
+        
+        // Check which directories were created and provide feedback
+        const androidExists = await fs.pathExists(path.join(appPath, 'android'));
+        const iosExists = await fs.pathExists(path.join(appPath, 'ios'));
+        
+        if (androidExists) {
+          console.log(chalk.gray('   📱 Android directory created'));
+        }
+        if (iosExists) {
+          console.log(chalk.gray('   🍎 iOS directory created'));
+        }
+        
+        // Auto-install CocoaPods if iOS directory was created on macOS
+        if (iosExists && os.platform() === 'darwin') {
+          console.log(chalk.yellow('\n🍎 iOS directory detected - CocoaPods installation recommended'));
+          
+          const installPods = await askQuestion(chalk.cyan('📱 Install CocoaPods dependencies now? (Y/n): '));
+          
+          if (installPods.toLowerCase() !== 'n' && installPods.toLowerCase() !== 'no') {
+            try {
+              console.log(chalk.cyan('\n📦 Installing CocoaPods dependencies...'));
+              await execa('npx', ['pod-install'], { cwd: appPath, stdio: 'inherit' });
+              console.log(chalk.green('✅ CocoaPods installation completed!'));
+            } catch (error) {
+              console.log(chalk.red('❌ CocoaPods installation failed. You can run it manually later:'));
+              console.log(chalk.yellow('npx pod-install'));
+            }
+          }
+        }
+        
+      } catch (error) {
+        console.log(chalk.red('❌ Failed to generate native directories:'), error.message);
+        console.log(chalk.yellow('You can generate them manually later with: npx expo prebuild'));
+      }
+    }
+    
     console.log(chalk.green(`\n✅ Project '${appName}' is ready! 🚀`));
 
     // Change to project directory
@@ -235,25 +304,6 @@ async function run() {
     console.log(chalk.cyan('Project contents:'));
     dirContents.forEach(item => console.log('  -', item));
 
-    // Prompt for CocoaPods installation on macOS
-    const os = require('os');
-    if (os.platform() === 'darwin') {
-      console.log(chalk.yellow('\n🍎 Detected macOS - iOS development available'));
-      
-      const installPods = await askQuestion(chalk.cyan('📱 Install CocoaPods dependencies now? (y/N): '));
-      
-      if (installPods.toLowerCase() === 'y' || installPods.toLowerCase() === 'yes') {
-        try {
-          console.log(chalk.cyan('\n📦 Installing CocoaPods dependencies...'));
-          await execa('npx', ['pod-install'], { cwd: appPath, stdio: 'inherit' });
-          console.log(chalk.green('✅ CocoaPods installation completed!'));
-        } catch (error) {
-          console.log(chalk.red('❌ CocoaPods installation failed. You can run it manually later:'));
-          console.log(chalk.yellow('npx pod-install'));
-        }
-      }
-    }
-    
     rl.close();
 
     // Provide user instructions
