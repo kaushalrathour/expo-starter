@@ -166,7 +166,7 @@ async function run() {
       '@react-navigation/native',
       '@react-navigation/stack',
       'react-native-gesture-handler',
-      'react-native-reanimated@3.19.0',
+      'react-native-reanimated',
       'react-native-safe-area-context',
       'react-native-screens',
     ];
@@ -184,6 +184,19 @@ async function run() {
 
     console.log(chalk.green(`📦 Installing state management dependencies: ${group3.join(', ')}...`));
     await execa('npx', ['expo', 'install', ...group3], { cwd: appPath, stdio: 'inherit' });
+
+    // Step 4.5: Remove Expo Router dependencies
+    console.log(chalk.cyan('🗑️ Removing Expo Router dependencies...'));
+    const routerPackagesToRemove = [
+      'expo-router'
+    ];
+    
+    try {
+      await execa('npm', ['uninstall', ...routerPackagesToRemove], { cwd: appPath, stdio: 'inherit' });
+      console.log(chalk.green('✅ Expo Router dependencies removed'));
+    } catch (error) {
+      console.log(chalk.yellow('⚠️  Expo Router may not have been installed, continuing...'));
+    }
 
     // Step 5: Configure package name if provided
     let finalPackageName = packageName;
