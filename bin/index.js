@@ -23,7 +23,7 @@ async function run() {
     // Step 1: Initialize Expo app
     console.log(chalk.cyan(`🚀 Initializing Expo app '${appName}'...`));
 
-    await execa('npx', ['expo', 'create', appName], { cwd: cwd, stdio: 'inherit' });
+    await execa('npx', ['create-expo-app', appName], { cwd: cwd, stdio: 'inherit' });
 
     // Step 2: Remove files/folders to override
     console.log(chalk.cyan('🔧 Setting up custom template files...'));
