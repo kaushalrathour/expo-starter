@@ -10,7 +10,7 @@ async function run() {
   const packageName = process.argv[3]; // optional
 
   if (!appName) {
-    console.error(chalk.red('❌ Please provide an app name.\nUsage: node bootstrap.js MyApp [com.organization.appname]'));
+    console.error(chalk.red('❌ Please provide an app name.\nUsage: expo-starter AppName [com.organization.appname]'));
     process.exit(1);
   }
 
@@ -19,19 +19,14 @@ async function run() {
   const templateDir = path.resolve(__dirname, '../overrides');
 
   try {
-    // Step 1: Initialize React Native app
-    console.log(chalk.cyan(`🚀 Initializing React Native app '${appName}'...`));
+    // Step 1: Initialize Expo app
+    console.log(chalk.cyan(`🚀 Initializing Expo app '${appName}'...`));
 
-    const initArgs = ['@react-native-community/cli', 'init', appName];
-    if (packageName) {
-      initArgs.push('--package-name', packageName);
-    }
-
-    await execa('npx', initArgs, { cwd: cwd, stdio: 'inherit' });
+    await execa('npx', ['expo', 'create', appName], { cwd: cwd, stdio: 'inherit' });
 
     // Step 2: Remove files/folders to override
     console.log(chalk.cyan('🔧 Setting up custom template files...'));
-    const toRemove = ['App.tsx', 'README.md', 'babel.config.js', 'assets', 'src'];
+    const toRemove = ['App.tsx', 'README.md', 'babel.config.js', 'assets', 'src', 'app', 'constants', 'hooks', 'scripts'];
     for (const item of toRemove) {
       const targetPath = path.join(appPath, item);
       if (await fs.pathExists(targetPath)) {
@@ -59,15 +54,20 @@ async function run() {
       // Merge scripts, keeping existing ones and adding new ones
       packageJson.scripts = { ...packageJson.scripts, ...processedScriptsTemplate.scripts };
       
+      // Add expo doctor configuration if present in template
+      if (processedScriptsTemplate.expo) {
+        packageJson.expo = { ...packageJson.expo, ...processedScriptsTemplate.expo };
+      }
+      
       await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
-      console.log(chalk.green('✅ Added comprehensive npm scripts to package.json'));
+      console.log(chalk.green('✅ Added comprehensive npm scripts and expo configuration to package.json'));
     }
 
     // Step 4: Install dependency groups
     const group1 = [
       '@react-native-async-storage/async-storage',
       'react-native-size-matters',
-      'react-native-vector-icons',
+      '@expo/vector-icons',
       'react-native-paper',
       'react-native-toast-message',
     ];
@@ -96,23 +96,135 @@ async function run() {
     console.log(chalk.green(`📦 Installing state management dependencies: ${group3.join(', ')}...`));
     await execa('npm', ['install', ...group3], { cwd: appPath, stdio: 'inherit' });
 
-    // Step 5: Append fonts.gradle line
-    const buildGradlePath = path.join(appPath, 'android', 'app', 'build.gradle');
-    const fontGradleLine = 'apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")';
-
-    if (await fs.pathExists(buildGradlePath)) {
-      let gradleContent = await fs.readFile(buildGradlePath, 'utf8');
-      if (!gradleContent.includes(fontGradleLine)) {
-        gradleContent = `${gradleContent.trim()}\n\n${fontGradleLine}\n`;
-        await fs.writeFile(buildGradlePath, gradleContent, 'utf8');
-        console.log(chalk.green('➕ Added fonts.gradle line to android/app/build.gradle'));
-      } else {
-        console.log(chalk.gray('✔ fonts.gradle line already present'));
+    // Step 5: Configure package name if provided
+    if (packageName) {
+      console.log(chalk.cyan(`📦 Configuring package name: ${packageName}...`));
+      
+      const appJsonPath = path.join(appPath, 'app.json');
+      if (await fs.pathExists(appJsonPath)) {
+        const appJson = await fs.readJson(appJsonPath);
+        
+        // Update iOS bundle identifier
+        if (!appJson.expo.ios) {
+          appJson.expo.ios = {};
+        }
+        appJson.expo.ios.bundleIdentifier = packageName;
+        
+        // Update Android package
+        if (!appJson.expo.android) {
+          appJson.expo.android = {};
+        }
+        appJson.expo.android.package = packageName;
+        
+        await fs.writeJson(appJsonPath, appJson, { spaces: 2 });
+        console.log(chalk.green(`✅ Updated bundle identifier and package to: ${packageName}`));
       }
-    } else {
-      console.warn(chalk.red('⚠ android/app/build.gradle not found — skipping modification'));
     }
 
+    // Step 6: Configure app scheme and universal links
+    console.log(chalk.cyan('🔗 Setting up deep linking configuration...'));
+    
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    
+    const askQuestion = (question) => {
+      return new Promise((resolve) => {
+        rl.question(question, (answer) => {
+          resolve(answer.trim());
+        });
+      });
+    };
+    
+    const configureAppScheme = await askQuestion(chalk.cyan('📱 Do you want to configure a custom app scheme for deep linking? (y/N): '));
+    let appScheme = null;
+    let universalLinkDomain = null;
+    
+    if (configureAppScheme.toLowerCase() === 'y' || configureAppScheme.toLowerCase() === 'yes') {
+      appScheme = await askQuestion(chalk.cyan('🔤 Enter your app scheme (e.g., "myapp", "sunrise"): '));
+      
+      if (appScheme) {
+        const configureUniversalLinks = await askQuestion(chalk.cyan('🌐 Do you want to configure universal links? (y/N): '));
+        
+        if (configureUniversalLinks.toLowerCase() === 'y' || configureUniversalLinks.toLowerCase() === 'yes') {
+          universalLinkDomain = await askQuestion(chalk.cyan('🔗 Enter your domain for universal links (e.g., "myapp.com", "sunrise-trade.myshopify.com"): '));
+        }
+        
+        // Update app.json with scheme and universal link configuration
+        const appJsonPath = path.join(appPath, 'app.json');
+        if (await fs.pathExists(appJsonPath)) {
+          const appJson = await fs.readJson(appJsonPath);
+          
+          // Add scheme to root level
+          appJson.expo.scheme = appScheme;
+          
+          // Configure Android intent filters
+          if (!appJson.expo.android) {
+            appJson.expo.android = {};
+          }
+          
+          const intentFilters = [];
+          
+          // Add universal link intent filter if domain provided
+          if (universalLinkDomain) {
+            intentFilters.push({
+              "action": "VIEW",
+              "autoVerify": true,
+              "data": [
+                { "scheme": "https", "host": universalLinkDomain }
+              ],
+              "category": ["BROWSABLE", "DEFAULT"]
+            });
+          }
+          
+          // Add custom scheme intent filter
+          intentFilters.push({
+            "action": "VIEW",
+            "data": [
+              { "scheme": appScheme }
+            ],
+            "category": ["BROWSABLE", "DEFAULT"]
+          });
+          
+          // Merge with existing intent filters if any
+          if (appJson.expo.android.intentFilters && Array.isArray(appJson.expo.android.intentFilters)) {
+            appJson.expo.android.intentFilters = [...appJson.expo.android.intentFilters, ...intentFilters];
+          } else {
+            appJson.expo.android.intentFilters = intentFilters;
+          }
+          
+          // Configure iOS associated domains
+          if (universalLinkDomain) {
+            if (!appJson.expo.ios) {
+              appJson.expo.ios = {};
+            }
+            
+            const associatedDomain = `applinks:${universalLinkDomain}`;
+            
+            if (appJson.expo.ios.associatedDomains && Array.isArray(appJson.expo.ios.associatedDomains)) {
+              if (!appJson.expo.ios.associatedDomains.includes(associatedDomain)) {
+                appJson.expo.ios.associatedDomains.push(associatedDomain);
+              }
+            } else {
+              appJson.expo.ios.associatedDomains = [associatedDomain];
+            }
+          }
+          
+          await fs.writeJson(appJsonPath, appJson, { spaces: 2 });
+          console.log(chalk.green('✅ Deep linking configuration added to app.json'));
+          
+          if (appScheme) {
+            console.log(chalk.gray(`   📱 App scheme: ${appScheme}://`));
+          }
+          if (universalLinkDomain) {
+            console.log(chalk.gray(`   🌐 Universal links: https://${universalLinkDomain}`));
+          }
+        }
+      }
+    }
+    
     console.log(chalk.green(`\n✅ Project '${appName}' is ready! 🚀`));
 
     // Change to project directory
@@ -128,21 +240,9 @@ async function run() {
     if (os.platform() === 'darwin') {
       console.log(chalk.yellow('\n🍎 Detected macOS - iOS development available'));
       
-      // Simple prompt using readline
-      const readline = require('readline');
-      const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-      });
+      const installPods = await askQuestion(chalk.cyan('📱 Install CocoaPods dependencies now? (y/N): '));
       
-      const installPods = await new Promise((resolve) => {
-        rl.question(chalk.cyan('📱 Install CocoaPods dependencies now? (y/N): '), (answer) => {
-          rl.close();
-          resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
-        });
-      });
-      
-      if (installPods) {
+      if (installPods.toLowerCase() === 'y' || installPods.toLowerCase() === 'yes') {
         try {
           console.log(chalk.cyan('\n📦 Installing CocoaPods dependencies...'));
           await execa('npx', ['pod-install'], { cwd: appPath, stdio: 'inherit' });
@@ -153,17 +253,21 @@ async function run() {
         }
       }
     }
+    
+    rl.close();
 
     // Provide user instructions
     console.log(chalk.yellow(`\n🚀 Next steps:`));
-    if (os.platform() !== 'darwin') {
-      console.log(chalk.yellow(`1. For iOS (macOS only): npx pod-install`));
-      console.log(chalk.yellow(`2. To run on iOS: npx react-native run-ios`));
-      console.log(chalk.yellow(`3. To run on Android: npx react-native run-android`));
-    } else {
-      console.log(chalk.yellow(`1. To run on iOS: npx react-native run-ios`));
-      console.log(chalk.yellow(`2. To run on Android: npx react-native run-android`));
-    }
+    console.log(chalk.yellow(`1. To start development server: npm start`));
+    console.log(chalk.yellow(`2. To run on iOS: npm run ios`));
+    console.log(chalk.yellow(`3. To run on Android: npm run android`));
+    console.log(chalk.yellow(`4. To run on Web: npm run web`));
+    
+    console.log(chalk.cyan(`\n🏢 EAS Build Commands:`));
+    console.log(chalk.gray(`• Development build: npm run build:development`));
+    console.log(chalk.gray(`• Preview build: npm run build:preview`));
+    console.log(chalk.gray(`• Production build: npm run build:production`));
+    console.log(chalk.gray(`• Submit to stores: npm run submit:production`));
     
     console.log(chalk.cyan(`\n📋 Troubleshooting Pod Install Issues:`));
     console.log(chalk.gray(`If you encounter 'RNWorklets' dependency errors during pod install:`));

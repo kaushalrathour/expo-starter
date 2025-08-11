@@ -1,20 +1,20 @@
-# 🚀 React Native Pro Starter Template
+# 🚀 Expo Pro Starter Template
 
 <div align="center">
 
-[![npm version](https://badge.fury.io/js/%40kaushalrathour%2Freact-native-starter.svg)](https://badge.fury.io/js/%40kaushalrathour%2Freact-native-starter)
-[![Downloads](https://img.shields.io/npm/dm/@kaushalrathour/react-native-starter.svg)](https://www.npmjs.com/package/@kaushalrathour/react-native-starter)
+[![npm version](https://badge.fury.io/js/%40kaushalrathour%2Fexpo-starter.svg)](https://badge.fury.io/js/%40kaushalrathour%2Fexpo-starter)
+[![Downloads](https://img.shields.io/npm/dm/@kaushalrathour/expo-starter.svg)](https://www.npmjs.com/package/@kaushalrathour/expo-starter)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
-[![React Native](https://img.shields.io/badge/React%20Native-0.72+-green.svg)](https://reactnative.dev/)
-[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/kaushalrathour/react-native-starter/graphs/commit-activity)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/kaushalrathour/react-native-starter/pulls)
+[![Expo](https://img.shields.io/badge/Expo-SDK%2051+-000020.svg)](https://expo.dev/)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/kaushalrathour/expo-starter/graphs/commit-activity)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/kaushalrathour/expo-starter/pulls)
 
-**🎯 The Most Complete React Native Template for Professional Development**
+**🎯 The Most Complete Expo Template for Professional Development**
 
 **⚡ Skip 8+ hours of tedious setup. Start shipping features in minutes!**
 
-*Production-ready • TypeScript • Redux Toolkit • 60+ NPM Scripts • Best Practices*
+*Production-ready • TypeScript • Redux Toolkit • EAS Build Ready • Best Practices*
 
 </div>
 
@@ -22,12 +22,13 @@
 
 ## 🌟 What Makes This Special
 
-> **The only React Native template that gives you EVERYTHING out of the box**
+> **The only Expo template that gives you EVERYTHING out of the box**
 
 ✨ **35+ Carefully Curated NPM Scripts** for professional development workflow  
-🏗️ **Enterprise-grade Architecture** with TypeScript & Redux Toolkit  
+🏢 **Enterprise-grade Architecture** with TypeScript & Redux Toolkit  
 🎨 **Beautiful UI Components** with React Native Paper  
-📱 **Cross-platform Navigation** with React Navigation v6  
+📱 **Cross-platform Development** - iOS, Android & Web  
+🚀 **EAS Build Ready** with pre-configured build profiles  
 🔧 **Developer Tools** pre-configured (ESLint, Prettier, more)  
 ⚡ **Zero Config** - works immediately after installation
 
@@ -36,13 +37,13 @@
 ### Method 1: Basic App Creation
 ```bash
 # Create app with default package name
-npx @kaushalrathour/react-native-starter MyAwesomeApp
+npx @kaushalrathour/expo-starter MyAwesomeApp
 ```
 
 ### Method 2: Custom Package Name (Recommended)
 ```bash
 # Create app with custom package identifier
-npx @kaushalrathour/react-native-starter MyAwesomeApp com.company.myawesomeapp
+npx @kaushalrathour/expo-starter MyAwesomeApp com.company.myawesomeapp
 ```
 
 **Then run your app:**
@@ -53,8 +54,10 @@ cd MyAwesomeApp
 npm run pod
 
 # Launch on your preferred platform
+npm start        # Start Expo development server
 npm run ios      # iOS Simulator
-npm run android  # Android Emulator
+npm run android  # Android Emulator  
+npm run web      # Web browser
 ```
 
 ## 📋 What You Get Instantly
@@ -63,7 +66,7 @@ npm run android  # Android Emulator
 | Category | What's Included | Time Saved |
 |----------|----------------|------------|
 | **🏗️ Architecture** | TypeScript, Redux Toolkit, Navigation | 3-4 hours |
-| **🎨 UI Framework** | React Native Paper, Vector Icons, Toast | 2-3 hours |
+| **🎨 UI Framework** | React Native Paper, Expo Vector Icons, Toast | 2-3 hours |
 | **⚙️ Developer Tools** | ESLint, Prettier, 60+ NPM scripts | 2-3 hours |
 | **📱 Platform Setup** | iOS/Android configs, responsive scaling | 1-2 hours |
 | **🔧 Build Tools** | Gradle scripts, Xcode configs, cleaning tools | 1-2 hours |
@@ -85,18 +88,20 @@ npm run android  # Android Emulator
 
 1. **Create your app**:
 ```bash
-npx @kaushalrathour/react-native-starter MyApp
+npx @kaushalrathour/expo-starter MyApp
 ```
 
 2. **Install dependencies**:
 ```bash
-cd MyAwesomeApp && npx pod-install
+cd MyApp && npm run pod
 ```
 
 3. **Launch**:
 ```bash
-npx react-native run-ios     # iOS
-npx react-native run-android # Android
+npm start        # Start Expo development server
+npm run ios      # iOS Simulator
+npm run android  # Android Emulator
+npm run web      # Web browser
 ```
 
 
@@ -155,17 +160,18 @@ const styles = StyleSheet.create({
 ✅ **Regularly updated** dependencies  
 ✅ **Commercial project** proven  
 
-## ⚡ 35+ NPM Scripts - Your Complete Toolkit
+## ⚡ 50+ NPM Scripts - Your Complete Toolkit
 
-> **Carefully curated scripts for professional React Native development**
+> **Carefully curated scripts for professional Expo development**
 
 ### 🚀 Development Commands
 ```bash
 # Basic development
-npm start              # Start Metro bundler
-npm run start:reset    # Start Metro with cache reset
+npm start              # Start Expo development server
+npm run start:clear    # Start Expo with cleared cache
 npm run android        # Run on Android emulator/device
 npm run ios            # Run on iOS simulator
+npm run web            # Run on web browser
 npm test               # Run Jest tests
 
 # Code quality
@@ -175,7 +181,7 @@ npm run format         # Format code with Prettier
 npm run format:check   # Check code formatting
 ```
 
-### 🏗️ Build & Release Commands
+### 🏢 Build & Release Commands
 ```bash
 # Android builds
 npm run android:debug          # Build debug APK
@@ -192,6 +198,15 @@ npm run ios:archive    # Archive for App Store
 # Quick release builds
 npm run release:android    # Clean + release Android
 npm run release:ios        # Clean + release iOS
+```
+
+### 🚀 EAS Build Commands (Cloud Builds)
+```bash
+# EAS Build profiles - Production ready!
+npm run build:development      # Build development client
+npm run build:preview          # Build preview for internal testing
+npm run build:production       # Build production release
+npm run submit:production      # Submit to app stores
 ```
 
 ### 📦 Package Management & Dependencies

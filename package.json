@@ -1,9 +1,9 @@
 {
-  "name": "@kaushalrathour/react-native-starter",
-  "version": "2.0.0",
-  "description": "Bootstrap a custom React Native app with predefined template and dependencies",
+  "name": "@kaushalrathour/expo-starter",
+  "version": "2.0.2",
+  "description": "Bootstrap a custom React Native Expo app with predefined template and dependencies",
   "bin": {
-    "create-rn-starter": "./bin/index.js"
+    "expo-starter": "./bin/index.js"
   },
   "files": [
     "bin",
@@ -18,14 +18,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/kaushalrathour/react-native-starter.git"
+    "url": "https://github.com/kaushalrathour/expo-starter.git"
   },
-  "homepage": "https://github.com/kaushalrathour/react-native-starter#readme",
+  "homepage": "https://github.com/kaushalrathour/expo-starter#readme",
   "bugs": {
     "url": "https://github.com/kaushalrathour/react-native-starter/issues"
   },
   "keywords": [
     "react-native",
+    "expo",
     "bootstrap",
     "cli",
     "template",

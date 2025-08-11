@@ -1,9 +1,10 @@
 {
   "scripts": {
-    "start": "react-native start",
-    "start:reset": "react-native start --reset-cache",
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "start": "expo start",
+    "start:clear": "expo start --clear",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
     "test": "jest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -47,6 +48,32 @@
     "metro:clear": "npx react-native start --reset-cache",
     "watchman:clear": "watchman watch-del-all",
 
+    "build:development": "eas build --profile development",
+    "build:preview": "eas build --profile preview",
+    "build:production": "eas build --profile production",
+    "submit:production": "eas submit --profile production",
+
     "postinstall": "npx patch-package"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-inappbrowser-reborn",
+          "react-native-chart-kit",
+          "react-native-responsive-screen",
+          "expo-random",
+          "react-native-material-ripple",
+          "react-native-swiper",
+          "@apollo/client",
+          "@expo/metro-runtime",
+          "graphql",
+          "graphql-request",
+          "lodash",
+          "react-native-base64",
+          "react-native-otp-textinput"
+        ]
+      }
+    }
   }
 }
