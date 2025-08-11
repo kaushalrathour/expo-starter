@@ -79,11 +79,19 @@ async function run() {
     await execa('npx', ['create-expo-app', appName], { cwd: cwd, stdio: 'inherit' });
 
     // Step 2: Remove files/folders to override
+    console.log(chalk.cyan('🧹 Cleaning up default Expo files...'));
     const toRemove = ['App.tsx', 'README.md', 'babel.config.js', 'src', 'app', 'constants', 'components', 'hooks', 'scripts'];
     for (const item of toRemove) {
       const targetPath = path.join(appPath, item);
-      if (await fs.pathExists(targetPath)) {
-        await fs.remove(targetPath);
+      try {
+        if (await fs.pathExists(targetPath)) {
+          await fs.remove(targetPath);
+          console.log(chalk.gray(`   ✓ Removed ${item}`));
+        } else {
+          console.log(chalk.gray(`   - ${item} not found`));
+        }
+      } catch (error) {
+        console.log(chalk.yellow(`   ⚠️  Failed to remove ${item}: ${error.message}`));
       }
     }
 
@@ -480,6 +488,14 @@ ${configSection}
     } catch (error) {
       console.log(chalk.yellow('⚠️  Git configuration failed (this is optional):'), error.message);
       console.log(chalk.gray('   You can manually configure git later'));
+    }
+    
+    // Step 9: Clean up template files
+    console.log(chalk.cyan('🧹 Cleaning up template files...'));
+    const packageJsonTemplatePath = path.join(appPath, 'package.json.template');
+    if (await fs.pathExists(packageJsonTemplatePath)) {
+      await fs.remove(packageJsonTemplatePath);
+      console.log(chalk.gray('   ✓ Removed package.json.template'));
     }
     
     console.log(chalk.green(`\n✅ Project '${appName}' is ready! 🚀`));
