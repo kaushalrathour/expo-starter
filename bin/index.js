@@ -149,9 +149,6 @@ async function run() {
         packageJson.expo = { ...packageJson.expo, ...processedScriptsTemplate.expo };
       }
       
-      // Set main entry point to index.ts
-      packageJson.main = 'index.ts';
-      
       await fs.writeJson(packageJsonPath, packageJson, { spaces: 2 });
       console.log(chalk.green('✅ Package configuration updated'));
     }
@@ -180,13 +177,13 @@ async function run() {
     ];
 
     console.log(chalk.green(`📦 Installing UI & utility dependencies: ${group1.join(', ')}...`));
-    await execa('npm', ['install', ...group1], { cwd: appPath, stdio: 'inherit' });
+    await execa('npx', ['expo', 'install', ...group1], { cwd: appPath, stdio: 'inherit' });
 
     console.log(chalk.green(`📦 Installing navigation dependencies: ${group2.join(', ')}...`));
-    await execa('npm', ['install', ...group2], { cwd: appPath, stdio: 'inherit' });
+    await execa('npx', ['expo', 'install', ...group2], { cwd: appPath, stdio: 'inherit' });
 
     console.log(chalk.green(`📦 Installing state management dependencies: ${group3.join(', ')}...`));
-    await execa('npm', ['install', ...group3], { cwd: appPath, stdio: 'inherit' });
+    await execa('npx', ['expo', 'install', ...group3], { cwd: appPath, stdio: 'inherit' });
 
     // Step 5: Configure package name if provided
     let finalPackageName = packageName;
@@ -215,6 +212,31 @@ async function run() {
               resolve(answer.trim());
             });
           });
+        };
+        
+        // Improved askQuestion with fallback handling for yes/no questions
+        const askYesNoQuestion = async (question, validResponses = ['y', 'yes', 'n', 'no'], allowEmpty = true) => {
+          let response;
+          do {
+            response = await askQuestion(question);
+            
+            // If empty response and allowed, break the loop
+            if (!response && allowEmpty) {
+              break;
+            }
+            
+            // Check if response is valid
+            if (response && validResponses.includes(response.toLowerCase())) {
+              break;
+            }
+            
+            // Invalid response, ask again
+            if (response) {
+              console.error(chalk.red('❌ Invalid response. Please answer with: ' + validResponses.join(', ')));
+            }
+          } while (response || !allowEmpty);
+          
+          return response;
         };
         
         const updatePackage = await askQuestion(chalk.cyan('Would you like to update your package name to avoid iOS issues? (y/N): '));
@@ -290,7 +312,32 @@ async function run() {
       });
     };
     
-    const configureAppScheme = await askQuestion(chalk.cyan('📱 Do you want to configure a custom app scheme for deep linking? (y/N): '));
+    // Improved askQuestion with fallback handling for yes/no questions
+    const askYesNoQuestion = async (question, validResponses = ['y', 'yes', 'n', 'no'], allowEmpty = true) => {
+      let response;
+      do {
+        response = await askQuestion(question);
+        
+        // If empty response and allowed, break the loop
+        if (!response && allowEmpty) {
+          break;
+        }
+        
+        // Check if response is valid
+        if (response && validResponses.includes(response.toLowerCase())) {
+          break;
+        }
+        
+        // Invalid response, ask again
+        if (response) {
+          console.error(chalk.red('❌ Invalid response. Please answer with: ' + validResponses.join(', ')));
+        }
+      } while (response || !allowEmpty);
+      
+      return response;
+    };
+    
+    const configureAppScheme = await askYesNoQuestion(chalk.cyan('📱 Do you want to configure a custom app scheme for deep linking? (y/N): '));
     let appScheme = null;
     let universalLinkDomain = null;
     
@@ -311,7 +358,7 @@ async function run() {
       } while (appScheme && !validateAppScheme(appScheme));
       
       if (appScheme) {
-        const configureUniversalLinks = await askQuestion(chalk.cyan('🌐 Do you want to configure universal links? (y/N): '));
+        const configureUniversalLinks = await askYesNoQuestion(chalk.cyan('🌐 Do you want to configure universal links? (y/N): '));
         
         if (configureUniversalLinks.toLowerCase() === 'y' || configureUniversalLinks.toLowerCase() === 'yes') {
           // Validate domain with retry logic
@@ -404,7 +451,7 @@ async function run() {
     }
     
     // Step 7: Generate native directories if requested
-    const generateNative = await askQuestion(chalk.cyan('📱 Do you want to generate native Android/iOS directories (expo prebuild)? (y/N): '));
+    const generateNative = await askYesNoQuestion(chalk.cyan('📱 Do you want to generate native Android/iOS directories (expo prebuild)? (y/N): '));
     
     if (generateNative.toLowerCase() === 'y' || generateNative.toLowerCase() === 'yes') {
       // Ask which platforms to prebuild
@@ -451,7 +498,7 @@ async function run() {
         if (iosExists && os.platform() === 'darwin') {
           console.log(chalk.yellow('\n🍎 iOS directory detected - CocoaPods installation recommended'));
           
-          const installPods = await askQuestion(chalk.cyan('📱 Install CocoaPods dependencies now? (Y/n): '));
+          const installPods = await askYesNoQuestion(chalk.cyan('📱 Install CocoaPods dependencies now? (Y/n): '), ['y', 'yes', 'n', 'no'], true);
           
           if (installPods.toLowerCase() !== 'n' && installPods.toLowerCase() !== 'no') {
             try {
@@ -548,6 +595,19 @@ ${configSection}
       console.log(chalk.yellow(`   📝 Note: ${removedInFinalCleanup} directories were regenerated by npm/Expo and have been removed`));
     } else {
       console.log(chalk.gray('   ✓ No files needed final cleanup'));
+    }
+    
+    // Step 11: Set final package.json main entry point to index.ts
+    console.log(chalk.cyan('📝 Setting final entry point configuration...'));
+    const finalPackageJsonPath = path.join(appPath, 'package.json');
+    if (await fs.pathExists(finalPackageJsonPath)) {
+      const finalPackageJson = await fs.readJson(finalPackageJsonPath);
+      
+      // Set main entry point to index.ts instead of expo-router/entry
+      finalPackageJson.main = 'index.ts';
+      
+      await fs.writeJson(finalPackageJsonPath, finalPackageJson, { spaces: 2 });
+      console.log(chalk.green('✅ Entry point set to index.ts'));
     }
     
     console.log(chalk.green(`\n✅ Project '${appName}' is ready! 🚀`));
